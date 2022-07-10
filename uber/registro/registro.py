@@ -19,10 +19,17 @@ class Registro:
     horario_partida: str
     local_chegada: str
     horario_chegada:str
-    link: str
     
     @staticmethod
     async def __completo(dados: List):
+        """Os dados de viagens canceladas e completas vem diferetente. 
+
+        Args:
+            dados (List): Dados da viagem.
+
+        Returns:
+            [Dict]: Dados da viagem tratados.
+        """        
         metodos = getattr(Registro, '__annotations__')
         if 'Sua viagem' in dados[3]:
             dados.insert(3, None)
@@ -35,7 +42,7 @@ class Registro:
                         viagem = dado.replace('\xa0', ' ').split(' ')[3]
                         motorista = ' '.join(dado.replace('\xa0', ' ').split(' ')[5:])
                     except IndexError:
-                        breakpoint()
+                        ...
                     metodos['categoria_viagem'] = viagem
                     metodos['nome_motorista'] = motorista
                     continue
@@ -49,6 +56,14 @@ class Registro:
         
     @staticmethod
     async def __cancelada(dados: List):
+        """A mesma explicação do metodos acima.
+
+        Args:
+            dados (List): [description]
+
+        Returns:
+            [type]: [description]
+        """        
         metodos = getattr(Registro, '__annotations__')
         if 'Sua viagem' in dados[3]:
             dados.insert(3, ' ')
@@ -62,9 +77,9 @@ class Registro:
                         viagem =  dado.replace('\xa0', ' ').split(' ')[3]
                         motorista = ' '.join(dado.replace('\xa0', ' ').split(' ')[5:])
                     except IndexError:
-                        breakpoint()
+                        pass
                     except AttributeError:
-                        breakpoint()
+                        pass
                     metodos['categoria_viagem'] = viagem
                     metodos['nome_motorista'] = motorista
                     continue
@@ -80,6 +95,7 @@ class Registro:
     
     @classmethod
     async def to_registro(cls, dado: str):
+        # TODO refatorar esse codigo que estou me repetindo muito.
         dados = dado.split('\n')
         if len(dados) > 7:
             valores = await cls.__completo(dados)
