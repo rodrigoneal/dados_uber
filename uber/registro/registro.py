@@ -1,106 +1,40 @@
-import asyncio
+import re
 from dataclasses import dataclass
-from itertools import zip_longest
-from typing import List
+from datetime import datetime
 
 
-
-
-@dataclass()
+@dataclass(init=False)
 class Registro:
-    data_pedido: str
-    valor_corrida: str
-    municipio_corrida: str
+    data_pedido: datetime
+    valor_corrida: float
     metodo_pagamento: str
-    categoria_viagem: str
-    corrida_cancelada: bool
-    nome_motorista: str
+    categoria_viagem: str = None
+    quilometragem_viagem: float = None
+    tempo_viagem: float = None
+    nome_motorista: str = None
     local_partida: str
     horario_partida: str
     local_chegada: str
-    horario_chegada:str
-    
-    @staticmethod
-    async def __completo(dados: List):
-        """Os dados de viagens canceladas e completas vem diferetente. 
+    horario_chegada: str
 
-        Args:
-            dados (List): Dados da viagem.
-
-        Returns:
-            [Dict]: Dados da viagem tratados.
-        """        
-        metodos = getattr(Registro, '__annotations__')
-        if 'Sua viagem' in dados[3]:
-            dados.insert(3, None)
-        dados.insert(5, False)      
-        dados.insert(6, " ")      
-        for reg, dado in zip(metodos, dados):
-            async with asyncio.Lock():
-                if reg == 'categoria_viagem':
-                    try:
-                        viagem = dado.replace('\xa0', ' ').split(' ')[3]
-                        motorista = ' '.join(dado.replace('\xa0', ' ').split(' ')[5:])
-                    except IndexError:
-                        ...
-                    metodos['categoria_viagem'] = viagem
-                    metodos['nome_motorista'] = motorista
-                    continue
-                if reg == 'nome_motorista':
-                    continue
-                if dado:
-                    metodos[reg] = dado.replace('\xa0', ' ').replace('•••• ', '').strip()
-                else:
-                    metodos[reg] = dado
-        return metodos
-        
-    @staticmethod
-    async def __cancelada(dados: List):
-        """A mesma explicação do metodos acima.
-
-        Args:
-            dados (List): [description]
-
-        Returns:
-            [type]: [description]
-        """        
-        metodos = getattr(Registro, '__annotations__')
-        if 'Sua viagem' in dados[3]:
-            dados.insert(3, ' ')
-        dados.insert(5, True)
-        dados.insert(6, None)
-        dados.pop()
-        for reg, dado in zip_longest(metodos, dados): 
-            async with asyncio.Lock():           
-                if reg == 'categoria_viagem':
-                    try:
-                        viagem =  dado.replace('\xa0', ' ').split(' ')[3]
-                        motorista = ' '.join(dado.replace('\xa0', ' ').split(' ')[5:])
-                    except IndexError:
-                        pass
-                    except AttributeError:
-                        pass
-                    metodos['categoria_viagem'] = viagem
-                    metodos['nome_motorista'] = motorista
-                    continue
-                if reg == 'nome_motorista':
-                    continue
-                if dado and type(dado) != bool:
-                    metodos[reg] = dado.replace('\xa0', ' ').replace('Cancelada', "").replace('•••• ', '').strip()
-                else:
-                    metodos[reg] = dado
-        return metodos
-
-
-    
     @classmethod
-    async def to_registro(cls, dado: str):
-        # TODO refatorar esse codigo que estou me repetindo muito.
-        dados = dado.split('\n')
-        if len(dados) > 7:
-            valores = await cls.__completo(dados)
-            return cls(**valores)
-        else:
-            valores = await cls.__cancelada(dados)
-            return cls(**valores)
-# ['25 February 2022, 8:22pm', 'R$\xa00,00Cancelada', 'Rio de Janeiro', 'Sua viagem no UberX\xa0com Erick', 'Rua Embaú, 561 - Pavuna - Rio de Janeiro - RJ, 21535', 'Informações']
+    async def to_registro(cls, *, datas: str,
+                          rotas, categoria, quilometro: str,
+                          tempo: str, pagamento: str, valor: str):
+        _class = cls()
+        _class.data_pedido, _class.nome_motorista = [
+            data.strip() for data in datas.split("com")]
+        dados_rota = [rota.strip() for rota in rotas.split("\n") if rota]
+
+        if len(dados_rota) == 5:
+            _class.local_partida = dados_rota[1]
+            _class.horario_partida = dados_rota[2]
+            _class.local_chegada = dados_rota[3]
+            _class.horario_chegada = dados_rota[4]
+
+        _class.categoria_viagem = categoria
+        _class.quilometragem_viagem = quilometro.replace(" Quilômetros", "").replace(" kilometers", "") if quilometro else None
+        _class.tempo_viagem = tempo.replace("\xa0min", "").replace(" min", "") if tempo else None
+        _class.metodo_pagamento = pagamento
+        _class.valor_corrida = valor.replace("R$\xa0", "").replace(",", ".") if valor else None
+        return _class
